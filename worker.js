@@ -58,8 +58,14 @@ if (LOGGLY_TOKEN)
         const payload = JSON.parse(msg.content.toString());
         if (msg.properties.type == "sample")
             await getSample(payload);
-        if (msg.properties.type == "telemetry")
-            await getTelemetry(payload, msg.properties.headers.match_api_id);
+        if (msg.properties.type == "telemetry") {
+            try {
+                await getTelemetry(payload, msg.properties.headers.match_api_id);
+            } catch (err) {
+                logger.error("Telemetry download error", err);
+                ch.nack(msg, false, true);  // TODO how to handle this?
+            }
+        }
 
         logger.info("done", payload);
         ch.ack(msg);
@@ -96,12 +102,7 @@ if (LOGGLY_TOKEN)
         logger.info("downloading Telemetry",
             { url: url, match_api_id: match_api_id });
         // download
-        const telemetry = await request(url, {
-            json: true,
-            gzip: true,
-            strictSSL: true,
-            forever: true
-        }),
+        const telemetry = await loggedRequest(url),
             spawn = telemetry.filter((ev) => ev.type == "PlayerFirstSpawn")[0];
 
         // return telemetry { m_a_id, data, start, end } in an interval
@@ -134,5 +135,35 @@ if (LOGGLY_TOKEN)
         });
         logger.info("Telemetry done",
             { url: url, match_api_id: match_api_id });
+    }
+
+    async function loggedRequest(url) {
+        let response;
+        try {
+            const opts = {
+                json: true,
+                gzip: true,
+                time: true,
+                forever: true,
+                strictSSL: true,
+                resolveWithFullResponse: true
+            };
+            logger.info("AWS request", { uri: url, });
+            response = await request(url, opts);
+            return response.body;
+        } catch (err) {
+            logger.warn("AWS error", {
+                uri: url,
+                error: err.response.body
+            });
+            throw err;
+        } finally {
+            if (response != undefined)  // else non-requests error
+                logger.info("AWS response", {
+                    status: response.statusCode,
+                    connection_start: response.timings.connect,
+                    connection_end: response.timings.end
+                });
+        }
     }
 })();
