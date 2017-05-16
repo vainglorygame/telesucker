@@ -10,6 +10,7 @@ const amqp = require("amqplib"),
     request = require("request-promise"),
     sleep = require("sleep-promise"),
     jsonapi = require("../orm/jsonapi"),
+    moment = require("moment"),
     AdmZip = require("adm-zip");
 
 const RABBITMQ_URI = process.env.RABBITMQ_URI || "amqp://localhost",
@@ -57,6 +58,8 @@ if (LOGGLY_TOKEN)
         const payload = JSON.parse(msg.content.toString());
         if (msg.properties.type == "sample")
             await getSample(payload);
+        if (msg.properties.type == "telemetry")
+            await getTelemetry(payload, msg.properties.headers.match_api_id);
 
         logger.info("done", payload);
         ch.ack(msg);
@@ -86,5 +89,50 @@ if (LOGGLY_TOKEN)
         else
             await ch.sendToQueue(PROCESS_BRAWL_QUEUE, new Buffer(JSON.stringify(match)),
                 { persistent: true, type: "match" })
+    }
+
+    // download Telemetry, filter irrelevant events, forward the rest to `process`
+    async function getTelemetry(url, match_api_id) {
+        logger.info("downloading Telemetry",
+            { url: url, match_api_id: match_api_id });
+        // download
+        const telemetry = await request(url, {
+            json: true,
+            gzip: true,
+            strictSSL: true,
+            forever: true
+        }),
+            spawn = telemetry.filter((ev) => ev.type == "PlayerFirstSpawn")[0];
+
+        // return telemetry { m_a_id, data, start, end } in an interval
+        const gamePhase = (start, end) => { return {
+            match_api_id: match_api_id,
+            data: telemetry.filter((ev) =>
+                moment(ev.time).isBetween(
+                    moment(spawn.time).add(start, "seconds"),
+                    moment(spawn.time).add(end, "seconds")
+                ) ),
+            start: start,
+            end: end
+        } };
+        // split into phases
+        const phases = [
+            gamePhase(0, 1 * 60),  // start
+            gamePhase(1 * 60, 4 * 60),  // early game
+            gamePhase(4 * 60, 10 * 60),  // mid game
+            gamePhase(10 * 60, 15 * 60),  // mid game Gold miner
+            gamePhase(15 * 60, 20 * 60),  // mid game Kraken
+            gamePhase(20 * 60, 25 * 60),  // late game
+            gamePhase(25 * 60, 30 * 60),  // late game
+            gamePhase(30 * 60, 90 * 60)  // still playing?
+        ];
+        await Promise.each(phases, async (phase) => {
+            if (phase.data.length > 0)
+                await ch.sendToQueue(PROCESS_QUEUE, new Buffer(
+                    JSON.stringify(phase)),
+                    { persistent: true, type: "telemetry" })
+        });
+        logger.info("Telemetry done",
+            { url: url, match_api_id: match_api_id });
     }
 })();
