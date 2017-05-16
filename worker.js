@@ -120,13 +120,14 @@ if (LOGGLY_TOKEN)
         const phases = [
             gamePhase(0, 90 * 60),  // whole
             gamePhase(0, 1 * 60),  // start
-            gamePhase(1 * 60, 4 * 60),  // early game
-            gamePhase(4 * 60, 10 * 60),  // mid game
-            gamePhase(10 * 60, 15 * 60),  // mid game Gold miner
-            gamePhase(15 * 60, 20 * 60),  // mid game Kraken
-            gamePhase(20 * 60, 25 * 60),  // late game
-            gamePhase(25 * 60, 30 * 60),  // late game
-            gamePhase(30 * 60, 90 * 60)  // still playing?
+            gamePhase(0, 4 * 60),  // early game
+            gamePhase(0, 8 * 60),  // miner full
+            gamePhase(0, 12 * 60),  // miner full
+            gamePhase(0, 15 * 60),  // Kraken spawn
+            gamePhase(0, 20 * 60),  // late mid game
+            gamePhase(0, 25 * 60),  // late game
+            gamePhase(0, 30 * 60),  // late game
+            gamePhase(0, 90 * 60)  // still playing?
         ];
         await Promise.each(phases, async (phase) => {
             if (phase.data.length > 0)
