@@ -118,6 +118,7 @@ if (LOGGLY_TOKEN)
         } };
         // split into phases
         const phases = [
+            gamePhase(0, 90 * 60),  // whole
             gamePhase(0, 1 * 60),  // start
             gamePhase(1 * 60, 4 * 60),  // early game
             gamePhase(4 * 60, 10 * 60),  // mid game
