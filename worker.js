@@ -64,6 +64,7 @@ if (LOGGLY_TOKEN)
             } catch (err) {
                 logger.error("Telemetry download error", err);
                 ch.nack(msg, false, true);  // TODO how to handle this?
+                return;
             }
         }
 
