@@ -130,11 +130,13 @@ if (LOGGLY_TOKEN)
             gamePhase(0, 30 * 60),  // late game
             gamePhase(0, 90 * 60)  // still playing?
         ];
-        await Promise.each(phases, async (phase) => {
+        await Promise.each(phases, async (phase, idx, len) => {
             if (phase.data.length > 0)
                 await ch.sendToQueue(PROCESS_QUEUE, new Buffer(
-                    JSON.stringify(phase)),
-                    { persistent: true, type: "telemetry" })
+                    JSON.stringify(phase)), {
+                        persistent: true, type: "telemetry",
+                        headers: idx == len - 1? { notify: "match." + match_api_id } : {}
+                    })
         });
         logger.info("Telemetry done",
             { url: url, match_api_id: match_api_id });
