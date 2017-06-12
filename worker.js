@@ -115,10 +115,13 @@ if (LOGGLY_TOKEN)
                     moment(spawn.time).add(end, "seconds")
                 ) ),
             start: start,
+            match_start: spawn.time,
             end: end
         } };
         // split into phases
         const phases = [
+            // genious idea to put bans into Telemetry.
+            gamePhase(-5 * 60, 0),  // draft
             gamePhase(0, 90 * 60),  // whole
             gamePhase(0, 1 * 60),  // start
             gamePhase(0, 4 * 60),  // early game
