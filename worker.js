@@ -106,14 +106,21 @@ if (LOGGLY_TOKEN)
         const telemetry = await loggedRequest(url),
             spawn = telemetry.filter((ev) => ev.type == "PlayerFirstSpawn")[0];
 
+        const forward_profiler = logger.startTimer();
         // return telemetry { m_a_id, data, start, end } in an interval
         const gamePhase = (start, end) => { return {
             match_api_id: match_api_id,
-            data: telemetry.filter((ev) =>
-                moment(ev.time).isBetween(
-                    moment(spawn.time).add(start, "seconds"),
-                    moment(spawn.time).add(end, "seconds")
-                ) ),
+            data: telemetry.slice(
+                // assumes Telemetry is ordered by timestamp.
+                telemetry.findIndex((ev) =>
+                    moment(ev.time).isSameOrAfter(
+                        moment(spawn.time).add(start, "seconds")
+                    ) ),
+                telemetry.findIndex((ev) =>
+                    moment(ev.time).isSameOrBefore(
+                        moment(spawn.time).add(end, "seconds")
+                    ) ) + 1  // slice does not include end
+            ),
             start: start,
             match_start: spawn.time,
             end: end
@@ -130,17 +137,20 @@ if (LOGGLY_TOKEN)
             gamePhase(0, 15 * 60),  // Kraken spawn
             gamePhase(0, 20 * 60),  // late mid game
             gamePhase(0, 25 * 60),  // late game
-            gamePhase(0, 30 * 60),  // late game
-            gamePhase(0, 90 * 60)  // still playing?
+            gamePhase(0, 30 * 60)  // late game
         ];
-        await Promise.each(phases, async (phase, idx, len) => {
-            if (phase.data.length > 0)
+        await Promise.each(phases, async (phase) => {
+            if (phase.data.length > 0) {
+                const notify = "match." + match_api_id;
+                await ch.publish("amq.topic", notify, new Buffer("phase_pending"));
                 await ch.sendToQueue(PROCESS_QUEUE, new Buffer(
                     JSON.stringify(phase)), {
                         persistent: true, type: "telemetry",
-                        headers: idx == len - 1? { notify: "match." + match_api_id } : {}
+                        headers: { notify }
                     })
+            }
         });
+        forward_profiler.done("Telemetry splitting");
         logger.info("Telemetry done",
             { url: url, match_api_id: match_api_id });
     }
