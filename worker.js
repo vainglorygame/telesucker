@@ -115,12 +115,12 @@ if (LOGGLY_TOKEN)
                 // assumes Telemetry is ordered by timestamp.
                 telemetry.findIndex((ev) =>
                     moment(ev.time).isSameOrAfter(
-                        moment(spawn.time).add(start, "seconds")
+                        spawn_time.clone().add(start, "seconds")
                     ) ),
                 telemetry.findIndex((ev) =>
-                    moment(ev.time).isSameOrBefore(
-                        moment(spawn.time).add(end, "seconds")
-                    ) ) + 1  // slice does not include end
+                    moment(ev.time).isSameOrAfter(
+                        spawn_time.clone().add(end, "seconds")
+                    ) )  // slice does not include end
             ),
             start: start,
             match_start: spawn.time,
