@@ -104,7 +104,8 @@ if (LOGGLY_TOKEN)
             { url: url, match_api_id: match_api_id });
         // download
         const telemetry = await loggedRequest(url),
-            spawn = telemetry.filter((ev) => ev.type == "PlayerFirstSpawn")[0];
+            spawn = telemetry.filter((ev) => ev.type == "PlayerFirstSpawn")[0],
+            spawn_time = moment(spawn.time);
 
         const forward_profiler = logger.startTimer();
         // return telemetry { m_a_id, data, start, end } in an interval
