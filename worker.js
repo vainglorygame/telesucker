@@ -8,17 +8,12 @@ const amqp = require("amqplib"),
     winston = require("winston"),
     loggly = require("winston-loggly-bulk"),
     request = require("request-promise"),
-    sleep = require("sleep-promise"),
-    jsonapi = require("../orm/jsonapi"),
-    moment = require("moment"),
-    AdmZip = require("adm-zip");
+    moment = require("moment");
 
 const RABBITMQ_URI = process.env.RABBITMQ_URI || "amqp://localhost",
-    QUEUE = process.env.QUEUE || "sample",
-    PROCESS_QUEUE = process.env.PROCESS_QUEUE || "process",
-    PROCESS_BRAWL_QUEUE = process.env.PROCESS_BRAWL_QUEUE || "process_brawl",
-    LOGGLY_TOKEN = process.env.LOGGLY_TOKEN,
-    SAMPLERS = parseInt(process.env.SAMPLERS) || 5;
+    QUEUE = process.env.QUEUE || "telesuck",
+    SHRINK_QUEUE = process.env.SHRINK_QUEUE || "shrink",
+    LOGGLY_TOKEN = process.env.LOGGLY_TOKEN;
 
 const logger = new (winston.Logger)({
     transports: [
@@ -34,69 +29,35 @@ if (LOGGLY_TOKEN)
     logger.add(winston.transports.Loggly, {
         inputToken: LOGGLY_TOKEN,
         subdomain: "kvahuja",
-        tags: ["backend", "sampler", QUEUE],
+        tags: ["backend", "telesucker", QUEUE],
         json: true
     });
 
-(async () => {
-    let rabbit, ch;
+amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
+    process.on("SIGINT", () => {
+        rabbit.close();
+        process.exit();
+    });
 
-    while (true) {
-        try {
-            rabbit = await amqp.connect(RABBITMQ_URI);
-            ch = await rabbit.createChannel();
-            await ch.assertQueue(QUEUE, {durable: true});
-            break;
-        } catch (err) {
-            logger.error("error connecting", err);
-            await sleep(5000);
-        }
-    }
+    const ch = await rabbit.createChannel();
+    await ch.assertQueue(QUEUE, { durable: true });
+    await ch.assertQueue(QUEUE + "_failed", { durable: true });
+    await ch.prefetch(1);
 
-    await ch.prefetch(SAMPLERS);
     ch.consume(QUEUE, async (msg) => {
         const payload = JSON.parse(msg.content.toString());
-        if (msg.properties.type == "sample")
-            await getSample(payload);
-        if (msg.properties.type == "telemetry") {
-            try {
-                await getTelemetry(payload, msg.properties.headers.match_api_id);
-            } catch (err) {
-                logger.error("Telemetry download error", err);
-                ch.nack(msg, false, true);  // TODO how to handle this?
-                return;
-            }
+
+        try {
+            await getTelemetry(payload, msg.properties.headers.match_api_id);
+        } catch (err) {
+            logger.error("Telemetry download error", err);
+            ch.nack(msg, false, false);
+            return;
         }
 
         logger.info("done", payload);
         ch.ack(msg);
     }, { noAck: false });
-
-    // download a sample ZIP and send to processor
-    async function getSample(url) {
-        logger.info("downloading sample", url);
-        const zipdata = await request({
-            uri: url,
-            encoding: null
-        }),
-            zip = new AdmZip(zipdata);
-        await Promise.map(zip.getEntries(), async (entry) => {
-            if (entry.isDirectory) return;
-            const match = jsonapi.parse(JSON.parse(entry.getData().toString("utf8")));
-            await sendMatchToProcessor(match);
-        });
-        logger.info("sample processed", url);
-    }
-
-    // send to seperated queues or just to `process`
-    async function sendMatchToProcessor(match) {
-        if (["casual", "ranked"].indexOf(match.attributes.gameMode) != -1)
-            await ch.sendToQueue(PROCESS_QUEUE, new Buffer(JSON.stringify(match)),
-                { persistent: true, type: "match" })
-        else
-            await ch.sendToQueue(PROCESS_BRAWL_QUEUE, new Buffer(JSON.stringify(match)),
-                { persistent: true, type: "match" })
-    }
 
     // download Telemetry, filter irrelevant events, forward the rest to `process`
     async function getTelemetry(url, match_api_id) {
@@ -140,6 +101,7 @@ if (LOGGLY_TOKEN)
             gamePhase(0, 25 * 60),  // late game
             gamePhase(0, 30 * 60)  // late game
         ];
+        console.log(phases);
         await Promise.each(phases, async (phase) => {
             if (phase.data.length > 0) {
                 const notify = "match." + match_api_id;
@@ -185,4 +147,9 @@ if (LOGGLY_TOKEN)
                 });
         }
     }
-})();
+});
+
+process.on("unhandledRejection", (err) => {
+    logger.error(err);
+    process.exit(1);  // fail hard and die
+});
