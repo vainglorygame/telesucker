@@ -106,7 +106,7 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
             if (phase.data.length > 0) {
                 const notify = "match." + match_api_id;
                 await ch.publish("amq.topic", notify, new Buffer("phase_pending"));
-                await ch.sendToQueue(PROCESS_QUEUE, new Buffer(
+                await ch.sendToQueue(SHRINK_QUEUE, new Buffer(
                     JSON.stringify(phase)), {
                         persistent: true, type: "telemetry",
                         headers: { notify }
