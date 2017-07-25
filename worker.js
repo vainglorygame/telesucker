@@ -45,17 +45,17 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
     await ch.prefetch(1);
 
     ch.consume(QUEUE, async (msg) => {
-        const payload = JSON.parse(msg.content.toString());
+        const url = msg.content.toString();
 
         try {
-            await getTelemetry(payload, msg.properties.headers.match_api_id);
+            await getTelemetry(url, msg.properties.headers.match_api_id);
         } catch (err) {
             logger.error("Telemetry download error", err);
             ch.nack(msg, false, false);
             return;
         }
 
-        logger.info("done", payload);
+        logger.info("done", url);
         ch.ack(msg);
     }, { noAck: false });
 
