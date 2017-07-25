@@ -101,7 +101,6 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
             gamePhase(0, 25 * 60),  // late game
             gamePhase(0, 30 * 60)  // late game
         ];
-        console.log(phases);
         await Promise.each(phases, async (phase) => {
             if (phase.data.length > 0) {
                 const notify = "match." + match_api_id;
