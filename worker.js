@@ -72,23 +72,27 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
             spawn_time = moment(spawn.time);
 
         const forward_profiler = logger.startTimer();
+
         // return telemetry { m_a_id, data, start, end } in an interval
-        const gamePhase = (start, end) => { return {
-            match_api_id: match_api_id,
-            data: telemetry.slice(
-                // assumes Telemetry is ordered by timestamp.
-                telemetry.findIndex((ev) =>
-                    moment(ev.time).isSameOrAfter(
-                        spawn_time.clone().add(start, "seconds")
-                    ) ),
-                telemetry.findIndex((ev) =>
-                    moment(ev.time).isSameOrAfter(
-                        spawn_time.clone().add(end, "seconds")
-                    ) )  // slice does not include end
-            ),
-            start: start,
-            match_start: spawn.time,
-            end: end
+        const gamePhase = (start, end) => {
+            let spawn_plus_start = spawn_time.clone()
+                    .add(start, "seconds")
+                    .format("YYYY-MM-DDTHH:mm:ss") + "+0000",
+                spawn_plus_end = spawn_time.clone()
+                    .add(end, "seconds")
+                    .format("YYYY-MM-DDTHH:mm:ss") + "+0000";
+            return {
+                match_api_id: match_api_id,
+                data: telemetry.slice(
+                    // assumes Telemetry is ordered by timestamp,
+                    // assumes it uses the format as above
+                    telemetry.findIndex((ev) => !(ev.time<spawn_plus_start)),
+                    telemetry.findIndex((ev) => !(ev.time<spawn_plus_end))
+                    // slice does not include end
+                ),
+                start: start,
+                match_start: spawn.time,
+                end: end
         } };
         // split into phases
         const phases = [
