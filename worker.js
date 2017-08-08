@@ -117,6 +117,8 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
                         persistent: true, type: "telemetry",
                         headers: { notify }
                     })
+            } else {
+                logger.info("Warning! No data for this phase.", { phase });
             }
         });
         forward_profiler.done("Telemetry splitting");
