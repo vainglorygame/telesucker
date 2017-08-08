@@ -69,7 +69,7 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
         // download
         const telemetry = await loggedRequest(url),
             spawn = telemetry.filter((ev) => ev.type == "PlayerFirstSpawn")[0],
-            spawn_time = moment(spawn.time);
+            spawn_time = moment.utc(spawn.time);
 
         const forward_profiler = logger.startTimer();
 
