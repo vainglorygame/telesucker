@@ -45,6 +45,8 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
     await ch.assertQueue(SHRINK_QUEUE, { durable: true });
     await ch.prefetch(1);
 
+    logger.info("configuration", { QUEUE, SHRINK_QUEUE });
+
     ch.consume(QUEUE, async (msg) => {
         const url = msg.content.toString();
 
