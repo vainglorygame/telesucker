@@ -42,6 +42,7 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
     const ch = await rabbit.createChannel();
     await ch.assertQueue(QUEUE, { durable: true });
     await ch.assertQueue(QUEUE + "_failed", { durable: true });
+    await ch.assertQueue(SHRINK_QUEUE, { durable: true });
     await ch.prefetch(1);
 
     ch.consume(QUEUE, async (msg) => {
