@@ -69,7 +69,7 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
         // download
         const telemetry = await loggedRequest(url),
             spawn = telemetry.filter((ev) => ev.type == "PlayerFirstSpawn")[0],
-            spawn_time = moment.utc(spawn.time);
+            spawn_time = moment.parseZone(spawn.time);
 
         const forward_profiler = logger.startTimer();
 
@@ -77,10 +77,10 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
         const gamePhase = (start, end) => {
             let spawn_plus_start = spawn_time.clone()
                     .add(start, "seconds")
-                    .format("YYYY-MM-DDTHH:mm:ss") + "+0000",
+                    .format("YYYY-MM-DDTHH:mm:ss"),
                 spawn_plus_end = spawn_time.clone()
                     .add(end, "seconds")
-                    .format("YYYY-MM-DDTHH:mm:ss") + "+0000";
+                    .format("YYYY-MM-DDTHH:mm:ss");
             return {
                 match_api_id: match_api_id,
                 data: telemetry.slice(
