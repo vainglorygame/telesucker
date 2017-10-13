@@ -54,6 +54,10 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
             await getTelemetry(url, msg.properties.headers.match_api_id);
         } catch (err) {
             logger.error("Telemetry download error", err);
+            await ch.sendToQueue(QUEUE + "_failed", msg.content, {
+                persistent: true,
+                headers: msg.properties.headers
+            });
             ch.nack(msg, false, false);
             return;
         }
