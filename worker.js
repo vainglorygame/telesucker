@@ -143,12 +143,29 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
             };
             logger.info("AWS request", { uri: url, });
             response = await request(url, opts);
+            if (typeof response.body === "string") {
+                if (!response.body.startsWith("[")) {
+                    // invalid JSON
+                    // https://github.com/gamelocker/vainglory-assets/issues/325
+                    let hotfix = response.body.replace(/\{ "time":/g, ', { "time":');
+                    // `},` -> `} \n ]`
+                    hotfix = "[" + hotfix.substring(2, hotfix.length) + "]";
+                    response.body = JSON.parse(hotfix);
+                } else {
+                    logger.warn("invalid response", { url });
+                    throw { response };
+                }
+            }
             return response.body;
         } catch (err) {
-            logger.warn("AWS error", {
-                uri: url,
-                error: err.response.body
-            });
+            if (err.response != undefined) {
+                logger.warn("AWS error", {
+                    uri: url,
+                    error: err.response.body
+                });
+            } else {
+                logger.error(err);
+            }
             throw err;
         } finally {
             if (response != undefined)  // else non-requests error
