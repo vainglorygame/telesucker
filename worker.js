@@ -147,7 +147,7 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
                 if (!response.body.startsWith("[")) {
                     // invalid JSON
                     // https://github.com/gamelocker/vainglory-assets/issues/325
-                    let hotfix = response.body.replace(/\{ "time":/g, ', { "time":');
+                    let hotfix = response.body.replace(/\{\s+"time":/g, ', { "time":');
                     // `},` -> `} \n ]`
                     hotfix = "[" + hotfix.substring(2, hotfix.length) + "]";
                     response.body = JSON.parse(hotfix);
