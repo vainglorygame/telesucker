@@ -95,22 +95,12 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
                     // slice does not include end
                 ),
                 start: start,
-                match_start: spawn.time,
                 end: end
         } };
         // split into phases
         const phases = [
             // genious idea to put bans into Telemetry.
-            gamePhase(-5 * 60, 0),  // draft
-            gamePhase(0, 90 * 60),  // whole
-            gamePhase(0, 1 * 60),  // start
-            gamePhase(0, 4 * 60),  // early game
-            gamePhase(0, 8 * 60),  // miner full
-            gamePhase(0, 12 * 60),  // miner full
-            gamePhase(0, 15 * 60),  // Kraken spawn
-            gamePhase(0, 20 * 60),  // late mid game
-            gamePhase(0, 25 * 60),  // late game
-            gamePhase(0, 30 * 60)  // late game
+            gamePhase(-5 * 60, 0)  // draft
         ];
         await Promise.each(phases, async (phase) => {
             if (phase.data.length > 0) {
@@ -153,7 +143,8 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
                     response.body = JSON.parse(hotfix);
                 } else {
                     logger.warn("invalid response", { url });
-                    throw { response };
+                    //throw { response.body };
+JSON.parse(response.body);
                 }
             }
             return response.body;
@@ -164,7 +155,7 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
                     error: err.response.body
                 });
             } else {
-                logger.error(err);
+                //logger.error(err);
             }
             throw err;
         } finally {
