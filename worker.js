@@ -79,14 +79,18 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
 
         // return telemetry { m_a_id, data, start, end } in an interval
         const gamePhase = (start, end) => {
+            // TODO: uncommented for better performance with a single game spanning phase
+            /*
             let spawn_plus_start = spawn_time.clone()
                     .add(start, "seconds")
                     .format("YYYY-MM-DDTHH:mm:ss"),
                 spawn_plus_end = spawn_time.clone()
                     .add(end, "seconds")
                     .format("YYYY-MM-DDTHH:mm:ss");
+            */
             return {
                 match_api_id: match_api_id,
+                /*
                 data: telemetry.slice(
                     // assumes Telemetry is ordered by timestamp,
                     // assumes it uses the format as above
@@ -94,13 +98,15 @@ amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
                     telemetry.findIndex((ev) => !(ev.time<spawn_plus_end))
                     // slice does not include end
                 ),
+                */
+                data: telemetry,
                 start: start,
                 end: end
         } };
         // split into phases
         const phases = [
             // genious idea to put bans into Telemetry.
-            gamePhase(-5 * 60, 0)  // draft
+            gamePhase(-5 * 60, 5400) // bans + all
         ];
         await Promise.each(phases, async (phase) => {
             if (phase.data.length > 0) {
