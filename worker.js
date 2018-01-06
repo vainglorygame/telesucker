@@ -7,13 +7,15 @@ const amqp = require("amqplib"),
     Promise = require("bluebird"),
     winston = require("winston"),
     loggly = require("winston-loggly-bulk"),
+    datadog = require("winston-datadog"),
     request = require("request-promise"),
     moment = require("moment");
 
 const RABBITMQ_URI = process.env.RABBITMQ_URI || "amqp://localhost",
     QUEUE = process.env.QUEUE || "telesuck",
     SHRINK_QUEUE = process.env.SHRINK_QUEUE || "shrink",
-    LOGGLY_TOKEN = process.env.LOGGLY_TOKEN;
+    LOGGLY_TOKEN = process.env.LOGGLY_TOKEN,
+    DATADOG_TOKEN = process.env.DATADOG_TOKEN;
 
 const logger = new (winston.Logger)({
     transports: [
@@ -32,6 +34,12 @@ if (LOGGLY_TOKEN)
         tags: ["backend", "telesucker", QUEUE],
         json: true
     });
+
+// datadog integration
+if (DATADOG_TOKEN)
+    logger.add(new datadog({
+        api_key: DATADOG_TOKEN
+    }), null, true);
 
 amqp.connect(RABBITMQ_URI).then(async (rabbit) => {
     process.on("SIGINT", () => {
